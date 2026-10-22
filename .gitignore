@@ -3,3 +3,4 @@ runs/
 __pycache__/
 .venv/
 server.log
+.claude/
