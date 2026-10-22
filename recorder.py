@@ -1,5 +1,5 @@
 """Drive OBS through its built-in WebSocket server (OBS 28+)."""
-import logging, os, subprocess, time
+import logging, os, platform, subprocess, time
 from pathlib import Path
 import obsws_python as obs
 
@@ -13,8 +13,9 @@ def client():
             return obs.ReqClient(host="localhost", port=port, password=password, timeout=5)
         except Exception:
             if i == 0:  # not running yet: launch it and keep trying
-                subprocess.Popen(["obs", "--minimize-to-tray", "--disable-shutdown-check"],
-                                 start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                flags = ["--minimize-to-tray", "--disable-shutdown-check"]
+                cmd = ["open", "-a", "OBS", "--args", *flags] if platform.system() == "Darwin" else ["obs", *flags]
+                subprocess.Popen(cmd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(1)
     raise RuntimeError("Could not reach OBS. Is it installed with its WebSocket server enabled? See README.")
 
