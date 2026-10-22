@@ -21,11 +21,17 @@ So instead of describing the task, you **show it**. You record yourself doing it
 
 Pathfinder right-sizes its own models: cheap and fast for routine steps, strong for the answer, an independent family to check it. A whole run typically costs a few US cents to a few tens of cents; the page shows the running cost.
 
-## Setup (Ubuntu 24.04+, tested on 26.04 / GNOME Wayland)
+## Setup (Linux or macOS)
 
-1. Install OBS and ffmpeg: `sudo apt install obs-studio ffmpeg python3-venv`
-2. Open OBS once and make a scene with **Screen Capture (PipeWire)** and **Audio Input Capture** (your microphone). Pick your screen when asked.
-3. In OBS: **Tools → WebSocket Server Settings** → tick *Enable WebSocket server*, note the port (4455) and password. Close OBS.
+Tested on Ubuntu 26.04 (GNOME, Wayland). macOS uses the same code; only installing OBS and its permissions differ.
+
+1. Install OBS, ffmpeg and Python 3.9+:
+   - **Ubuntu:** `sudo apt install obs-studio ffmpeg python3-venv`
+   - **macOS:** with [Homebrew](https://brew.sh), `brew install ffmpeg python && brew install --cask obs` (or download OBS from obsproject.com into Applications)
+2. Open OBS once and make a scene with a screen source and your microphone:
+   - **Ubuntu:** **Screen Capture (PipeWire)** + **Audio Input Capture**. Pick your screen when asked.
+   - **macOS:** **macOS Screen Capture** + **Audio Input Capture**. When macOS asks, allow OBS **Screen Recording** and **Microphone** (System Settings → Privacy & Security), then quit and reopen OBS.
+3. In OBS: **Tools → WebSocket Server Settings** → tick *Enable WebSocket server*, note the port (4455) and password. Quit OBS (Pathfinder starts it itself).
 4. Get the code and its one dependency:
    ```
    git clone https://github.com/rolandendr/pathfinder && cd pathfinder
