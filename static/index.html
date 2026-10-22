@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Pathfinder</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+<style>
+body{font-family:system-ui,sans-serif;max-width:880px;margin:2em auto;padding:0 16px;line-height:1.45}
+section,#instr{display:none}.on{display:block!important}label{display:block;margin:.6em 0}
+input:not([type=radio]),textarea{width:100%;box-sizing:border-box;padding:6px;font:inherit}
+button{font:inherit;padding:6px 14px;margin:.4em .4em .4em 0}table{border-collapse:collapse}
+td,th{border:1px solid #999;padding:4px 8px}.rec{color:#c00;font-weight:bold}.warn{color:#a00}
+fieldset{margin:1em 0}#log p{margin:.4em 0}
+</style></head><body>
+<h1>Pathfinder</h1>
+<section id="setup" class="on">
+<label>Fireworks API key <input id="fw" type="password" placeholder="leave blank to use the key in .env"></label>
+<label>OpenRouter API key (used only to transcribe your voice) <input id="or" type="password" placeholder="leave blank to use the key in .env"></label>
+<label>Task title <input id="title"></label>
+<label>Task description <textarea id="desc" rows="6" placeholder="Please write a couple of sentences or a couple of paragraphs describing the task you want to automate."></textarea></label>
+</section>
+<div id="instr" class="on"><p><b>INSTRUCTIONS</b> - Once you click record, wait for the red recording light to come on. Once the system is recording please demonstrate the task that you want to automate with open source models. Please describe the task with your voice as you perform the task. Please do the task using your normal workflow. If you use an AI like Claude, Open AI or CoPilot, use it just as you usually do.</p>
+<p>Please note that this system is currently a demo and can only handle short discreet tasks. It is not designed to advise regarding multi-step processes, yet. Please send all comments to ajb@andrewbenard.com.</p>
+<p>Once you have completed recording your task please return to this window and click stop.</p></div>
+<section id="ready" class="on"><button onclick="record()">Record</button></section>
+<section id="recording"><p class="rec" id="light"></p><button onclick="stop()">Stop</button></section>
+<section id="review"><button onclick="submit()">Submit task</button><button onclick="rerecord()">Re-record</button></section>
+<section id="wait"><p id="waitmsg"></p></section>
+<section id="qa"><div class="summary"></div><h2>A few questions</h2><form id="qs"></form><button onclick="answer()">Continue</button></section>
+<section id="result"><div class="summary"></div><p class="warn" id="warn"></p><div id="rec"></div><p id="cost"></p>
+<h2>Questions or feedback</h2><div id="log"></div><textarea id="msg" rows="3"></textarea><button onclick="send()">Send</button>
+<p><button onclick="location.reload()">Demonstrate a new process</button></p></section>
+<script>
+let run = null, questions = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+function show(...ids) {
+  document.querySelectorAll('section,#instr').forEach(s => s.classList.toggle('on', ids.includes(s.id)));
+}
+const resume = new URLSearchParams(location.search).get('run');  // ?run=<id> reopens a saved recording
+if (resume) { run = resume; show('instr', 'review'); }
+async function api(path, body, waitText) {
+  const was = [...document.querySelectorAll('.on')].map(s => s.id);
+  if (waitText) { $('waitmsg').textContent = waitText; show('wait'); }
+  const r = await fetch('/api/' + path, {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({...body, run, keys: {fireworks: $('fw').value, openrouter: $('or').value}})});
+  const d = await r.json();
+  if (d.error) { alert(d.error + `\n\nSaved run: ${run}`); show(...was); return null; }
+  run = d.run;
+  return d;
+}
+async function record() {
+  if (!$('title').value) return alert('Please give the task a title.');
+  const d = await api('start', {title: $('title').value, description: $('desc').value}, 'Starting OBS...');
+  if (d) recording(); else show('setup', 'instr', 'ready');
+}
+function recording() { $('light').textContent = '● Recording - demonstrate your task now.'; show('instr', 'recording'); }
+async function stop() { if (await api('stop', {}, 'Saving the recording...')) show('instr', 'review'); }
+async function rerecord() { if (await api('rerecord', {}, 'Restarting the recording...')) recording(); }
+async function submit() { render(await api('submit', {}, 'Analyzing your task. This might take a couple of minutes...')); }
+async function answer() {
+  const answers = questions.map((q, i) => {
+    const pick = document.querySelector(`input[name=q${i}]:checked`);
+    return {question: q.question, answer: pick && pick.value ? pick.value : $('o' + i).value};
+  });
+  render(await api('answer', {answers}, 'Thinking about your answers. This might take a couple of minutes...'));
+}
+function render(d) {
+  if (!d) return;
+  const summary = String(d.summary || '').replaceAll('\\n', '\n');  // models sometimes send escaped newlines
+  if (summary) document.querySelectorAll('.summary').forEach(e => e.innerHTML = '<h2>What I understood</h2>' + marked.parse(summary));
+  if (d.stage === 'questions') {
+    questions = d.questions;
+    $('qs').innerHTML = questions.map((q, i) => `<fieldset><legend>${esc(q.question)}</legend>` +
+      q.options.map((o, j) => `<label><input type="radio" name="q${i}" value="${esc(o)}"${j ? '' : ' checked'}> ${esc(o)}</label>`).join('') +
+      `<label><input type="radio" name="q${i}" value=""> Other: <input id="o${i}"></label></fieldset>`).join('');
+    show('qa');
+  }
+  if (d.stage === 'result') {
+    $('rec').innerHTML = marked.parse(d.markdown);
+    $('warn').textContent = d.warning ? '⚠ The verifier flagged this answer: ' + d.warning.join('; ') : '';
+    show('result');
+  }
+  if (d.reply) addLog('Pathfinder', d.reply);
+  $('cost').textContent = `Model calls for this session so far: $${d.cost.toFixed(4)}`;
+}
+function addLog(who, text) { $('log').insertAdjacentHTML('beforeend', `<p><b>${who}:</b> ${marked.parseInline(text)}</p>`); }
+async function send() {
+  const message = $('msg').value.trim();
+  if (!message) return;
+  addLog('You', esc(message)); $('msg').value = '';
+  const d = await api('chat', {message}, null);
+  if (d) render(d);
+}
+</script>
+</body></html>
