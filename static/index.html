@@ -12,8 +12,8 @@ fieldset{margin:1em 0}#log p{margin:.4em 0}
 </style></head><body>
 <h1>Pathfinder</h1>
 <section id="setup" class="on">
-<label>Fireworks API key <input id="fw" type="password"></label>
-<label>OpenRouter API key (used only to transcribe your voice) <input id="or" type="password"></label>
+<label>Fireworks API key <input id="fw" type="password" placeholder="leave blank to use the key in .env"></label>
+<label>OpenRouter API key (used only to transcribe your voice) <input id="or" type="password" placeholder="leave blank to use the key in .env"></label>
 <label>Task title <input id="title"></label>
 <label>Task description <textarea id="desc" rows="6" placeholder="Please write a couple of sentences or a couple of paragraphs describing the task you want to automate."></textarea></label>
 </section>
@@ -35,17 +35,20 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', 
 function show(...ids) {
   document.querySelectorAll('section,#instr').forEach(s => s.classList.toggle('on', ids.includes(s.id)));
 }
+const resume = new URLSearchParams(location.search).get('run');  // ?run=<id> reopens a saved recording
+if (resume) { run = resume; show('instr', 'review'); }
 async function api(path, body, waitText) {
+  const was = [...document.querySelectorAll('.on')].map(s => s.id);
   if (waitText) { $('waitmsg').textContent = waitText; show('wait'); }
   const r = await fetch('/api/' + path, {method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({...body, run, keys: {fireworks: $('fw').value, openrouter: $('or').value}})});
   const d = await r.json();
-  if (d.error) { alert(d.error); return null; }
+  if (d.error) { alert(d.error + `\n\nSaved run: ${run}`); show(...was); return null; }
   run = d.run;
   return d;
 }
 async function record() {
-  if (!$('fw').value || !$('or').value || !$('title').value) return alert('Please fill in both keys and a title.');
+  if (!$('title').value) return alert('Please give the task a title.');
   const d = await api('start', {title: $('title').value, description: $('desc').value}, 'Starting OBS...');
   if (d) recording(); else show('setup', 'instr', 'ready');
 }
@@ -61,7 +64,7 @@ async function answer() {
   render(await api('answer', {answers}, 'Thinking about your answers. This might take a couple of minutes...'));
 }
 function render(d) {
-  if (!d) return show('result');
+  if (!d) return;
   const summary = String(d.summary || '').replaceAll('\\n', '\n');  // models sometimes send escaped newlines
   if (summary) document.querySelectorAll('.summary').forEach(e => e.innerHTML = '<h2>What I understood</h2>' + marked.parse(summary));
   if (d.stage === 'questions') {

@@ -19,6 +19,8 @@ def chat(key, model, messages, base=FIREWORKS, json_mode=False, effort=None, max
         with urllib.request.urlopen(req, timeout=600) as r:
             d = json.load(r)
     except urllib.error.HTTPError as e:
+        if e.code == 401:
+            raise RuntimeError(f"{'OpenRouter' if base == OPENROUTER else 'Fireworks'} rejected the API key.")
         raise RuntimeError(f"{model}: HTTP {e.code} {e.read().decode()[:300]}")
     return d["choices"][0]["message"].get("content") or "", d.get("usage", {})
 

@@ -66,6 +66,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        keys = body.get("keys", {})  # a blank box falls back to the key in .env
+        body["keys"] = {k: keys.get(k) or os.environ.get(f"{k.upper()}_API_KEY", "") for k in ("fireworks", "openrouter")}
         name = self.path.rsplit("/", 1)[-1]
         try:
             if name == "start":

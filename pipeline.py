@@ -33,6 +33,7 @@ def ask(run, step, keys, user, json_mode=False):
 
 def analyze(run, keys, folder):
     """Recording -> transcript (OpenRouter) -> structured task (Fireworks vision) -> classify."""
+    run["qa"], run["chat"] = [], []  # a re-submitted recording starts its questions afresh
     seconds, frames = llm.prepare(run["video"], folder)
     run["transcript"] = call(run, "transcribe", keys, [{"role": "user", "content": [
         {"type": "text", "text": f"{prompt('transcribe')}\nContext, for spelling names: {run['title']}. "
