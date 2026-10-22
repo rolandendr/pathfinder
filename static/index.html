@@ -62,7 +62,8 @@ async function answer() {
 }
 function render(d) {
   if (!d) return show('result');
-  if (d.summary) document.querySelectorAll('.summary').forEach(e => e.innerHTML = '<h2>What I understood</h2>' + marked.parse(d.summary));
+  const summary = String(d.summary || '').replaceAll('\\n', '\n');  // models sometimes send escaped newlines
+  if (summary) document.querySelectorAll('.summary').forEach(e => e.innerHTML = '<h2>What I understood</h2>' + marked.parse(summary));
   if (d.stage === 'questions') {
     questions = d.questions;
     $('qs').innerHTML = questions.map((q, i) => `<fieldset><legend>${esc(q.question)}</legend>` +
