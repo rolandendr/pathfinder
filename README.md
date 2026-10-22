@@ -34,7 +34,9 @@ Pathfinder right-sizes its own models: cheap and fast for routine steps, strong 
    ```
 5. Run it: `.venv/bin/python app.py`, then open http://localhost:8765
 
-You need a **Fireworks API key** and an **OpenRouter API key**; paste them on the first screen. They are held in the browser and sent with each request; they are never written to disk.
+You need a **Fireworks API key** and an **OpenRouter API key**. Paste them on the first screen, or put them in `.env` once (`FIREWORKS_API_KEY=…` and `OPENROUTER_API_KEY=…`) and leave the boxes blank. Pathfinder never writes them into a run.
+
+If a step fails (a rejected key, a network error), the recording is kept: open `http://localhost:8765/?run=<run id>` to submit it again.
 
 ## Using it
 
